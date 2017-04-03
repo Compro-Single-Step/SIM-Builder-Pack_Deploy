@@ -7,7 +7,8 @@ var clean = require('gulp-clean');
 
 
 gulp.task('clean', function () {
-    return gulp.src('checkout', {read: false})
+    return gulp.src('./checkout/develop', {read: false})
+    	 .pipe(ignore('./checkout/develop/node_modules'))
         .pipe(clean());
 });
 
@@ -43,7 +44,7 @@ gulp.task('buildforDeploy', ['install'], function(cb) {
 });
 
 gulp.task('move', ['buildforDeploy'], function(){
-	console.log("Moving files in develop folder");
+	 process.chdir(__dirname);
   	gulp.src('./checkout/develop/dist/**/*')
         .pipe(gulp.dest('./checkout/qaRelease/dist'));
 
@@ -59,5 +60,28 @@ gulp.task('chdirToQA', ['move'], function(cb) {
 //
 //Push Work
 //
+
+// gulp.task('addremote', function(){
+// 	 process.chdir('./checkout/qaRelease');
+//   git.addRemote('origin', 'https://github.com/Compro-Single-Step/SIMS-Builder/tree/SIM-Builder-Release', function (err) {
+//     if (err) throw err;
+//   });
+// });
+
+gulp.task('add', function() {
+  return gulp.src('./checkout/qaRelease/*')
+    .pipe(git.add());
+});
+
+gulp.task('commit', ['add'], function() {
+    return gulp.src('./*')
+      .pipe(git.commit("initial test"));
+});
+
+gulp.task('push', ['commit'], function(){
+  git.push('origin', 'SIM-Builder-Release', function (err) {
+    if (err) throw err;
+  });
+});
 
 gulp.task('default', ['move']);
