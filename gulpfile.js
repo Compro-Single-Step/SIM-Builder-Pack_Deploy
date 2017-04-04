@@ -61,25 +61,25 @@ gulp.task('chdirToQA', ['move'], function(cb) {
 //Push Work
 //
 
-gulp.task('addremote', function(){
+/*gulp.task('addremote', function(){
 	 //process.chdir('./checkout/qaRelease');
-  git.addRemote('orgin', 'https://github.com/Compro-Single-Step/SIMS-Builder.git', function (err) {
+  git.addRemote('develop7', 'https://github.com/Compro-Single-Step/SIMS-Builder.git', function (err) {
     if (err) throw err;
   });
-});
+});*/
 
 gulp.task('add', function() {
   return gulp.src('./checkout/qaRelease/*')
     .pipe(git.add());
 });
 
-gulp.task('commit', ['addremote','add'], function() {
+gulp.task('commit', ['add'], function() {
     return gulp.src('./*')
       .pipe(git.commit("initial test"));
 });
 
 gulp.task('push', ['commit'], function(){
-  git.push('orgin','SIM-Builder-Release', {args: '-f'}, function (err) {
+  git.push('develop7','SIM-Builder-Release', {args: '-f'}, function (err) {
     if (err) throw err;
   });
 });
