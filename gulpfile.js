@@ -125,9 +125,10 @@ gulp.task('push', ['commit'], function(){
   });
 });*/
 gulp.task('deploy', function() {
-  return gulp.src('./checkout/qaRelease/**/*', { read: false, base:'./checkout'})
-   .pipe(rename({'./checkout/qaRelease': 'qaRelease'}))
+  return gulp.src('./checkout/qaRelease/**/*', { read: false})
+  	
     .pipe(deploy({
+      prefix: 'checkout',
       repository: 'https://github.com/Compro-Single-Step/SIMS-Builder.git',
       remoteBranch:   'SIM-Builder-Release'
     }))
