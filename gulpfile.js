@@ -4,8 +4,7 @@ var git = require('gulp-git');
 var deploy = require('gulp-deploy-git');
 var exec = require('child_process').exec;
 var clean = require('gulp-clean');
-var rename = require('gulp-rename');
-
+var jeditor = require('gulp-json-editor');
 
 
 gulp.task('clean', function () {
@@ -77,7 +76,10 @@ gulp.task('move', ['buildforDeploy'], function(){
 
 	console.log("Moving files in develop folder");
   	packageJson = gulp.src('./checkout/develop/package.json')
-
+      .pipe(jeditor(function(json) {
+        json.scripts.start = 'node dist/server/server';
+        return json; // must return JSON object. 
+      }))
       .pipe(gulp.dest('./checkout/qaRelease'));
 });
 

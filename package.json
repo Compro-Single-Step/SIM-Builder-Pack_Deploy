@@ -10,10 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-   
     "gulp": "^3.9.1",
     "gulp-clean": "^0.3.2",
-    "gulp-git": "^2.1.0"
-    
+    "gulp-git": "^2.1.0",
+    "gulp-json-editor": "^2.2.1"
   }
 }
