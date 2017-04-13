@@ -12,6 +12,7 @@
   "dependencies": {
     "gulp": "^3.9.1",
     "gulp-clean": "^0.3.2",
+    "gulp-deploy-git": "^0.5.3",
     "gulp-git": "^2.1.0",
     "gulp-json-editor": "^2.2.1"
   }
