@@ -46,6 +46,7 @@ gulp.task('buildSourceCode', ['installSourceCode'], function(cb) {
 
 // clone dest repository
 gulp.task('cloneDest',['buildSourceCode'], function(){
+  process.chdir(__dirname);
   return dest_clone = new Promise( (resolve, reject) => {
       git.clone('https://github.com/Compro-Single-Step/SIMS-Builder.git',
               {args: path.join(__dirname, 'checkout', 'qaRelease')}, function(err) {
