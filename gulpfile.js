@@ -2,14 +2,14 @@ var gulp = require('gulp');
 var path = require('path');
 var git = require('gulp-git');
 var exec = require('child_process').exec;
-var clean = require('gulp-clean');
 var jeditor = require('gulp-json-editor');
 var spawn = require('child_process').spawn;
+var del = require('del');
+var fs = require('fs');
 
 //clean checkout folder
 gulp.task('cleanCheckoutFolder', function () {
-    return gulp.src('./checkout/', {read: false})
-        .pipe(clean());
+    return del(['checkout/**']);
 });
 
 // clone source repository
@@ -45,26 +45,55 @@ gulp.task('buildSourceCode', ['installSourceCode'], function(cb) {
 });
 
 // clone dest repository
-gulp.task('cloneDest',['cleanCheckoutFolder'], function(){
+gulp.task('cloneDest',['buildSourceCode'], function(){
   return dest_clone = new Promise( (resolve, reject) => {
-     git.clone('https://github.com/Compro-Single-Step/SIMS-Builder.git',
+      git.clone('https://github.com/Compro-Single-Step/SIMS-Builder.git',
               {args: path.join(__dirname, 'checkout', 'qaRelease')}, function(err) {
-      if (err)
-        reject(err)
-      else
-        resolve("Success");
-    });
+        if (err)
+          reject(err)
+        else
+          resolve("Success");
+      });
+    })
+});
+
+// switch dest branch
+gulp.task('switchDestBranch', ['cloneDest'], function(){
+  return switch_branch = new Promise( (resolve, reject) => {
+      git.checkout('SIM-Builder-Release', {cwd: './checkout/qaRelease', maxBuffer: 1024 * 1024}, function (err) {
+        if (err)
+          reject(err)
+        else
+          resolve("Success");
+      });
     })
 });
 
 // clean Destination folder after cloning
-gulp.task('cleanDest', function(){
-  return gulp.src(['./checkout/qaRelease/**', '!./checkout/qaRelease/', '!./checkout/qaRelease/.git'], {read: false})
-        .pipe(clean());
+gulp.task('cleanDest', ['switchDestBranch'],  function(callback){
+  var clean = function(folder) {
+    fs.readdirSync(folder).forEach(function(file) {
+      var filePath = path.normalize(path.join(folder, file));
+      stats = fs.lstatSync(filePath);
+      if (stats.isDirectory()) {
+        if (file !== '.git') {
+          clean(filePath, callback);
+        }
+        return;
+      }
+      fs.unlinkSync(filePath);
+    });
+  }
+  try {
+    clean(path.join(__dirname, 'checkout', 'qaRelease'));
+    callback(null);
+  } catch (err) {
+    callback(err);
+  }
 });
 
 // copying code to dest folder (dist folder and package.json)
-gulp.task('package', ['buildSourceCode','cleanDest'], function(){
+gulp.task('package', ['cleanDest'], function(){
 	 process.chdir(__dirname);
   	gulp.src('./checkout/develop/dist/**/*')
         .pipe(gulp.dest('./checkout/qaRelease/dist'));
@@ -101,7 +130,6 @@ gulp.task('commit', ['add'], function(callback) {
       }
       return callback(null);
     });
-
 });
 
 // git push in dest folder repository 
@@ -113,7 +141,29 @@ gulp.task('push', ['commit'], function(callback){
     }
     return callback(null);
   });
-
 });
 
-gulp.task('default', ['push'], function() {});
+
+//git tag the commit
+gulp.task('addTag', function(callback) {
+   var cmdTag = spawn('git', ['tag', 'v1.5'], {cwd: './checkout/qaRelease'});
+   cmdTag.on('close', function(code) {
+      if (code !== 0) {
+        return callback('git commit exited with code ' + code);
+      }
+      return callback(null);
+    });
+});
+
+// git push the tag
+gulp.task('pushTag', ['addTag'], function(callback) {
+   var cmdPushTag = spawn('git', ['push', 'origin', 'v1.5'], {cwd: './checkout/qaRelease'});
+   cmdPushTag.on('close', function(code) {
+    if (code !== 0) {
+      return callback('git push exited with code ' + code);
+    }
+    return callback(null);
+  });
+});
+
+gulp.task('default', ['pushTag']);
