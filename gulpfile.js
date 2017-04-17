@@ -58,15 +58,14 @@ gulp.task('cloneDest',['buildSourceCode'], function(){
 });
 
 // switch dest branch
-gulp.task('switchDestBranch', ['cloneDest'], function(){
-  return switch_branch = new Promise( (resolve, reject) => {
-      git.checkout('SIM-Builder-Release', {cwd: './checkout/qaRelease', maxBuffer: 1024 * 1024}, function (err) {
-        if (err)
-          reject(err)
-        else
-          resolve("Success");
-      });
-    })
+gulp.task('switchDestBranch', ['cloneDest'], function(callback){
+  var cmdCheckout = spawn('git', ['checkout', 'SIM-Builder-Release'], {cwd: './checkout/qaRelease'});
+  cmdCheckout.on('close', function(code) {
+    if (code !== 0) {
+      return callback('git destination checkout exited with code ' + code);
+    }
+    return callback(null);
+  });
 });
 
 // clean Destination folder after cloning
@@ -149,7 +148,7 @@ gulp.task('addTag', ['push'], function(callback) {
    var cmdTag = spawn('git', ['tag', 'v1.5'], {cwd: './checkout/qaRelease'});
    cmdTag.on('close', function(code) {
       if (code !== 0) {
-        return callback('git commit exited with code ' + code);
+        return callback('git add tag exited with code ' + code);
       }
       return callback(null);
     });
@@ -160,7 +159,7 @@ gulp.task('pushTag', ['addTag'], function(callback) {
    var cmdPushTag = spawn('git', ['push', 'origin', 'v1.5'], {cwd: './checkout/qaRelease'});
    cmdPushTag.on('close', function(code) {
     if (code !== 0) {
-      return callback('git push exited with code ' + code);
+      return callback('git push tag exited with code ' + code);
     }
     return callback(null);
   });
