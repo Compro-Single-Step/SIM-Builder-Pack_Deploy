@@ -1,58 +1,32 @@
 var gulp = require('gulp');
 var path = require('path');
 var git = require('gulp-git');
-var deploy = require('gulp-deploy-git');
 var exec = require('child_process').exec;
 var clean = require('gulp-clean');
 var jeditor = require('gulp-json-editor');
+var spawn = require('child_process').spawn;
 
-
-gulp.task('clean', function () {
+//clean checkout folder
+gulp.task('cleanCheckoutFolder', function () {
     return gulp.src('./checkout/', {read: false})
-    	
         .pipe(clean());
 });
 
-gulp.task('clone', ['clean'], function(){
-	
-	return my_promise = new Promise( (resolve, reject) => {
-	   git.clone('https://tanujaggarwal@github.com/Compro-Single-Step/SIMS-Builder.git',
+// clone source repository
+gulp.task('cloneSource', ['cleanCheckoutFolder'], function(){
+	return source_clone = new Promise( (resolve, reject) => {
+	   git.clone('https://github.com/Compro-Single-Step/SIMS-Builder.git',
 	            {args: path.join(__dirname, 'checkout', 'develop')}, function(err) {
-	    if (err)
-	    	reject(err)
-	    else
-	    	resolve("Success");
-	  });
-  	})
+  	    if (err)
+  	    	reject(err)
+  	    else
+  	    	resolve("Success");
+	   });
+	})
 });
 
-gulp.task('clone1',['clean'], function(){
-	
-	return my_promise = new Promise( (resolve, reject) => {
-	   git.clone('https://tanujaggarwal@github.com/Compro-Single-Step/SIMS-Builder.git',
-	            {args: path.join(__dirname, 'checkout', 'qaRelease')}, function(err) {
-	    if (err)
-	    	reject(err)
-	    else
-	    	resolve("Success");
-	  });
-  	})
-});
-gulp.task('swtchBranch',['clone1'], function(){
-	return my_promise = new Promise( (resolve, reject) => {
-	  git.checkout('SIM-Builder-Release', {cwd: './checkout/qaRelease',maxBuffer: 1024 * 500},function (err) {
-
-	    if (err)
-	    	reject(err)
-	    else
-	    	resolve("Success");
-	  });
-  	})
-});
-
-
-
-gulp.task('install', ['clone','swtchBranch'], function(cb) {
+// install source node modules
+gulp.task('installSourceCode', ['cloneSource'], function(cb) {
 	 process.chdir('./checkout/develop');
     exec('npm install', {maxBuffer: 1024 * 500}, function(err, stdout, stderr) {
         console.log(stdout);
@@ -61,7 +35,8 @@ gulp.task('install', ['clone','swtchBranch'], function(cb) {
     });
 });
 
-gulp.task('buildforDeploy', ['install'], function(cb) {
+// building source repo code
+gulp.task('buildSourceCode', ['installSourceCode'], function(cb) {
     exec('npm run build', {maxBuffer: 1024 * 500}, function(err, stdout, stderr) {
         console.log(stdout);
         console.log(stderr);
@@ -69,7 +44,27 @@ gulp.task('buildforDeploy', ['install'], function(cb) {
     });
 });
 
-gulp.task('move', ['buildforDeploy'], function(){
+// clone dest repository
+gulp.task('cloneDest',['cleanCheckoutFolder'], function(){
+  return dest_clone = new Promise( (resolve, reject) => {
+     git.clone('https://github.com/Compro-Single-Step/SIMS-Builder.git',
+              {args: path.join(__dirname, 'checkout', 'qaRelease')}, function(err) {
+      if (err)
+        reject(err)
+      else
+        resolve("Success");
+    });
+    })
+});
+
+// clean Destination folder after cloning
+gulp.task('cleanDest', function(){
+  return gulp.src(['./checkout/qaRelease/**', '!./checkout/qaRelease/', '!./checkout/qaRelease/.git'], {read: false})
+        .pipe(clean());
+});
+
+// copying code to dest folder (dist folder and package.json)
+gulp.task('package', ['buildSourceCode','cleanDest'], function(){
 	 process.chdir(__dirname);
   	gulp.src('./checkout/develop/dist/**/*')
         .pipe(gulp.dest('./checkout/qaRelease/dist'));
@@ -83,56 +78,42 @@ gulp.task('move', ['buildforDeploy'], function(){
       .pipe(gulp.dest('./checkout/qaRelease'));
 });
 
-/*gulp.task('chdirToQA', ['move'], function(cb) {
-    process.chdir('../qaRelease');
-});*/
-
-//
-//Push Work
-//
-
-/*gulp.task('addremote', function(){
-	 //process.chdir('./checkout/qaRelease');
-  git.addRemote('develop10', 'https://github.com/Compro-Single-Step/SIMS-Builder.git', function (err) {
-    if (err) throw err;
+// git add files in dest folder 
+gulp.task('add', ['package'], function(callback) {
+  var cmdAdd = spawn('git', ['add', '--all', '.'], {cwd: './checkout/qaRelease'});
+  cmdAdd.on('close', function(code) {
+    if (code !== 0) {
+      return callback('git add exited with code ' + code);
+    }
+    return callback(null);
   });
 });
 
-gulp.task('add', function() {
-	 
-  return gulp.src('./checkout/qaRelease/*')
-    .pipe(git.add());
+// git committ files for dest folder 
+gulp.task('commit', ['add'], function(callback) {
+	 var cmdCommit = spawn('git', ['commit', '-m', 'simbuilder-release'], {cwd: './checkout/qaRelease'});
+   cmdCommit.on('close', function(code) {
+      if (code === 1) {
+        return callback('noChanges');
+      }
+      if (code !== 0) {
+        return callback('git commit exited with code ' + code);
+      }
+      return callback(null);
+    });
+
 });
 
-gulp.task('commit', ['add'], function() {
-	 //process.chdir('./checkout/qaRelease');
-    return gulp.src('./checkout/qaRelease/*')
-      .pipe(git.commit("initial test"));
-});
-
-gulp.task('push', ['commit'], function(){
-  return my_promise = new Promise( (resolve, reject) => {
-  git.push('origin','SIM-Builder-Release', {refspec: 'HEAD', cwd: './checkout/qaRelease',maxBuffer: 1024 * 500}, function (err) {
-    if (err)
-	    	reject(err)
-	    else
-	    	resolve("Success");
-	  });
-  	})
-});
-*/
-/*gulp.task('merge',['push'], function(){
-  git.merge('develop8', function (err) {
-    if (err) throw err;
+// git push in dest folder repository 
+gulp.task('push', ['commit'], function(callback){
+  var cmdPush = spawn('git', ['push', 'origin', 'SIM-Builder-Release'], {cwd: './checkout/qaRelease'});
+  cmdPush.on('close', function(code) {
+    if (code !== 0) {
+      return callback('git push exited with code ' + code);
+    }
+    return callback(null);
   });
-});*/
-gulp.task('deploy', function() {
-  return gulp.src('**', { read: false,cwd:'./checkout/qaRelease'})
 
-    .pipe(deploy({
-    
-      repository: 'https://github.com/Compro-Single-Step/SIMS-Builder.git',
-      remoteBranch:   'SIM-Builder-Release'
-    }))
 });
-gulp.task('default', ['move']);
+
+gulp.task('default', ['push'], function() {});
