@@ -145,7 +145,7 @@ gulp.task('push', ['commit'], function(callback){
 
 
 //git tag the commit
-gulp.task('addTag', function(callback) {
+gulp.task('addTag', ['push'], function(callback) {
    var cmdTag = spawn('git', ['tag', 'v1.5'], {cwd: './checkout/qaRelease'});
    cmdTag.on('close', function(code) {
       if (code !== 0) {
