@@ -27,7 +27,7 @@ gulp.task('cloneSource', ['cleanCheckoutFolder'], function(){
 
 // install source node modules
 gulp.task('installSourceCode', ['cloneSource'], function(cb) {
-	 process.chdir('./checkout/develop');
+   process.chdir('./checkout/develop');
     exec('npm install', {maxBuffer: 1024 * 500}, function(err, stdout, stderr) {
         console.log(stdout);
         console.log(stderr);
@@ -37,6 +37,7 @@ gulp.task('installSourceCode', ['cloneSource'], function(cb) {
 
 // building source repo code
 gulp.task('buildSourceCode', ['installSourceCode'], function(cb) {
+    process.chdir('./checkout/develop');
     exec('npm run build', {maxBuffer: 1024 * 500}, function(err, stdout, stderr) {
         console.log(stdout);
         console.log(stderr);
@@ -45,7 +46,7 @@ gulp.task('buildSourceCode', ['installSourceCode'], function(cb) {
 });
 
 // clone dest repository
-gulp.task('cloneDest',['buildSourceCode'], function(){
+gulp.task('cloneDest',['cleanCheckoutFolder'], function(){
   process.chdir(__dirname);
   return dest_clone = new Promise( (resolve, reject) => {
       git.clone('https://github.com/Compro-Single-Step/SIMS-Builder.git',
@@ -60,6 +61,7 @@ gulp.task('cloneDest',['buildSourceCode'], function(){
 
 // switch dest branch
 gulp.task('switchDestBranch', ['cloneDest'], function(callback){
+  process.chdir(__dirname);
   var cmdCheckout = spawn('git', ['checkout', 'SIM-Builder-Release'], {cwd: './checkout/qaRelease'});
   cmdCheckout.on('close', function(code) {
     if (code !== 0) {
@@ -93,13 +95,16 @@ gulp.task('cleanDest', ['switchDestBranch'],  function(callback){
 });
 
 // copying code to dest folder (dist folder and package.json)
-gulp.task('package', ['cleanDest'], function(){
-	 process.chdir(__dirname);
-  	gulp.src('./checkout/develop/dist/**/*')
+gulp.task('packageDistFolder', ['buildSourceCode', 'cleanDest'], function(){
+	   process.chdir(__dirname);
+  	 return gulp.src('./checkout/develop/dist/**/*')
         .pipe(gulp.dest('./checkout/qaRelease/dist'));
+});
 
-	console.log("Moving files in develop folder");
-  	packageJson = gulp.src('./checkout/develop/package.json')
+// copying and updating package.json
+gulp.task('copyPackageJSON', ['buildSourceCode', 'cleanDest'], function(){
+     process.chdir(__dirname);
+     return gulp.src('./checkout/develop/package.json')
       .pipe(jeditor(function(json) {
         json.scripts.start = 'node dist/server/server';
         return json; // must return JSON object. 
@@ -107,8 +112,8 @@ gulp.task('package', ['cleanDest'], function(){
       .pipe(gulp.dest('./checkout/qaRelease'));
 });
 
-// git add files in dest folder 
-gulp.task('add', ['package'], function(callback) {
+// git add files in dest branch
+gulp.task('add', ['copyPackageJSON', 'packageDistFolder'], function(callback) {
   var cmdAdd = spawn('git', ['add', '--all', '.'], {cwd: './checkout/qaRelease'});
   cmdAdd.on('close', function(code) {
     if (code !== 0) {
@@ -146,7 +151,7 @@ gulp.task('push', ['commit'], function(callback){
 
 //git tag the commit
 gulp.task('addTag', ['push'], function(callback) {
-   var cmdTag = spawn('git', ['tag', 'v1.5'], {cwd: './checkout/qaRelease'});
+   var cmdTag = spawn('git', ['tag', 'v1.7'], {cwd: './checkout/qaRelease'});
    cmdTag.on('close', function(code) {
       if (code !== 0) {
         return callback('git add tag exited with code ' + code);
@@ -157,7 +162,7 @@ gulp.task('addTag', ['push'], function(callback) {
 
 // git push the tag
 gulp.task('pushTag', ['addTag'], function(callback) {
-   var cmdPushTag = spawn('git', ['push', 'origin', 'v1.5'], {cwd: './checkout/qaRelease'});
+   var cmdPushTag = spawn('git', ['push', 'origin', 'v1.7'], {cwd: './checkout/qaRelease'});
    cmdPushTag.on('close', function(code) {
     if (code !== 0) {
       return callback('git push tag exited with code ' + code);
