@@ -151,7 +151,7 @@ gulp.task('push', ['commit'], function(callback){
 
 //git tag the commit
 gulp.task('addTag', ['push'], function(callback) {
-   var cmdTag = spawn('git', ['tag', 'v1.7'], {cwd: './checkout/qaRelease'});
+   var cmdTag = spawn('git', ['tag', 'v1.9'], {cwd: './checkout/qaRelease'});
    cmdTag.on('close', function(code) {
       if (code !== 0) {
         return callback('git add tag exited with code ' + code);
@@ -162,7 +162,7 @@ gulp.task('addTag', ['push'], function(callback) {
 
 // git push the tag
 gulp.task('pushTag', ['addTag'], function(callback) {
-   var cmdPushTag = spawn('git', ['push', 'origin', 'v1.7'], {cwd: './checkout/qaRelease'});
+   var cmdPushTag = spawn('git', ['push', 'origin', 'v1.9'], {cwd: './checkout/qaRelease'});
    cmdPushTag.on('close', function(code) {
     if (code !== 0) {
       return callback('git push tag exited with code ' + code);
@@ -171,4 +171,30 @@ gulp.task('pushTag', ['addTag'], function(callback) {
   });
 });
 
-gulp.task('default', ['pushTag']);
+
+//clean mongoDB collection json folder
+gulp.task('cleanCollectionJSON', function () {
+    return del(['collection.json']);
+});
+
+// export collection json for skill_config_repo from development DB
+gulp.task('exportDB', ['cleanCollectionJSON'] function(cb) {
+    process.chdir(__dirname);
+    exec('mongoexport -h ds113650.mlab.com:13650 -d sims-task-bullder -c skill_config_repo -u task_builder -p task_builder -o collection.json', {maxBuffer: 1024 * 500}, function(err, stdout, stderr) {
+        console.log(stdout);
+        console.log(stderr);
+        cb(err);
+    });
+});
+
+// import collection json for skill_config_repo from production DB
+gulp.task('importDB', ['exportDB'], function(cb) {
+    process.chdir(__dirname);
+    exec('mongoimport -h ds123361.mlab.com:23361 -d sims-builder -c skill_config_repo -u sims-builder -p sims-builder --file collection.json', {maxBuffer: 1024 * 500}, function(err, stdout, stderr) {
+        console.log(stdout);
+        console.log(stderr);
+        cb(err);
+    });
+});
+
+gulp.task('default', ['pushTag','importDB']);
