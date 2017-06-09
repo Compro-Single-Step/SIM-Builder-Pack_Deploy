@@ -15,7 +15,7 @@ gulp.task('cleanCheckoutFolder', function () {
 // clone source repository
 gulp.task('cloneSource', ['cleanCheckoutFolder'], function(){
 	return source_clone = new Promise( (resolve, reject) => {
-	   git.clone('https://github.com/Compro-Single-Step/SIMS-Builder.git',
+	   git.clone('http://vaggarta:tanuj.aggarwal@gitserver.comprotechnologies.com/scm/git/sims-builder',
 	            {args: path.join(__dirname, 'checkout', 'develop')}, function(err) {
   	    if (err)
   	    	reject(err)
@@ -25,8 +25,20 @@ gulp.task('cloneSource', ['cleanCheckoutFolder'], function(){
 	})
 });
 
+// switch source branch
+gulp.task('switchSourceBranch', ['cloneSource'], function(callback){
+  process.chdir(__dirname);
+  var cmdCheckout = spawn('git', ['checkout', 'develop'], {cwd: './checkout/develop'});
+  cmdCheckout.on('close', function(code) {
+    if (code !== 0) {
+      return callback('git destination checkout exited with code ' + code);
+    }
+    return callback(null);
+  });
+});
+
 // install source node modules
-gulp.task('installSourceCode', ['cloneSource'], function(cb) {
+gulp.task('installSourceCode', ['switchSourceBranch'], function(cb) {
    process.chdir(path.join(__dirname, 'checkout', 'develop'));
     exec('npm install', {maxBuffer: 1024 * 500}, function(err, stdout, stderr) {
         console.log(stdout);
@@ -49,7 +61,7 @@ gulp.task('buildSourceCode', ['installSourceCode'], function(cb) {
 gulp.task('cloneDest',['cleanCheckoutFolder'], function(){
   process.chdir(__dirname);
   return dest_clone = new Promise( (resolve, reject) => {
-      git.clone('https://github.com/Compro-Single-Step/SIMS-Builder.git',
+      git.clone('http://vaggarta:tanuj.aggarwal@gitserver.comprotechnologies.com/scm/git/sims-builder',
               {args: path.join(__dirname, 'checkout', 'qaRelease')}, function(err) {
         if (err)
           reject(err)
@@ -197,4 +209,4 @@ gulp.task('importDB', ['exportDB'], function(cb) {
     });
 });
 
-gulp.task('default', ['pushTag','importDB']);
+gulp.task('default', ['push','importDB']);
